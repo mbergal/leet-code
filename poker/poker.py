@@ -301,6 +301,10 @@ def match_full_house(hand: Hand) -> Optional[Score]:
     return None
 
 def match_flush(hand: Hand) -> Optional[Score]:
+    """
+    >>> match_flush(Hand.from_string("KC TC 7C 6C 4C"))
+    FLUSH,['K', 'T', '7', '6', '4']
+    """
     if hand.is_single_suit:
         return Score.make(Rank.FLUSH, matched=list(reversed(hand.cards)), hand=hand.cards)
 
@@ -435,13 +439,13 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-    # results = [0, 0, 0]
-    # with open("poker.txt", "rt") as f:
-    #     for line in f.readlines():
+    results = [0, 0, 0]
+    with open("poker.txt", "rt") as f:
+        for line in f.readlines():
 
-    #         # s = score(Cards.from_string(line)[0:5])
-    #         # print(line[0:15].strip(), "-", s)
-    #         # s = score(Cards.from_string(line)[5:])
-    #         # print(line[15:].strip(), "-", s)
-    #         results[winner(line)] += 1
-    #     print(results[1])
+            # s = score(Cards.from_string(line)[0:5])
+            # print(line[0:15].strip(), "-", s)
+            # s = score(Cards.from_string(line)[5:])
+            # print(line[15:].strip(), "-", s)
+            results[winner(line)] += 1
+        print(results[1])

@@ -97,8 +97,6 @@ def find_path_backward(start_word: str, end_word: str, words: Set[str]):
         visited.update(next_words)
         steps.append({word: set() for word in next_words})
 
-        # show_steps(steps, words)
-
         if end_word in next_words:
             break
 
@@ -108,24 +106,28 @@ def find_path_backward(start_word: str, end_word: str, words: Set[str]):
     return steps
 
 
-def find_path_forward(steps: List[Step], end_word: str):
-    def used_words(step: Step, nn: Set[str]):
-        r = {
-            word: step[word].intersection(nn)
-            for word, s in step.items()
-            if len(s.intersection(nn)) > 0
-        }
-        return r
+def used_words(graph: Graph, nn: Set[str]):
+    """
+    >>> used_words({'a': {'b', 'c'}}, {'b'})
+    {'a': {'b'}}
+    """
+    return {
+        word: graph[word].intersection(nn)
+        for word, s in graph.items()
+        if len(s.intersection(nn)) > 0
+    }
 
-    new_steps: List[Step] = [{end_word: steps[-1][end_word]}]
+def find_path_forward(graph: Graph, end_word: str):
+    new_graph: Graph = {end_word: graph[end_word]}
     prev_step_words: Set[str] = {end_word}
-    for step in list(reversed(steps))[1:]:
-        step_used_words: Step = used_words(step, prev_step_words)
-        new_steps.append(step_used_words)
+    while True:
+        step_used_words: Graph = used_words(graph, prev_step_words)
+        new_graph = merge_graphs([new_graph, step_used_words])
         prev_step_words = set(step_used_words.keys())
-        pass
-
-    return new_steps
+        if prev_step_words == set():
+            break
+    
+    return new_graph
 
 
 def find_shortest_path(
@@ -149,9 +151,9 @@ def find_shortest_path(
     if steps is None:
         return None
 
-    new_steps = find_path_forward(steps, end_word)
+    new_steps = find_path_forward(merge_graphs(steps), end_word)
 
-    return merge_graphs(new_steps)
+    return new_steps
 
 
 def shortest_ladders(start_word: str, end_word: str, word_list: Set[str]):
@@ -164,16 +166,16 @@ def shortest_ladders(start_word: str, end_word: str, word_list: Set[str]):
     if g is not None:
         a = g
 
-        # show_steps(steps, word_list)
-        dot = graphviz.Digraph(comment="The Round Table")
+        # # show_steps(steps, word_list)
+        # dot = graphviz.Digraph(comment="The Round Table")
 
-        for step in g:
-            for word, next_words in step.items():
-                dot.node(word)
-                for next in next_words:
-                    dot.edge(word, next)
+        # for step in g:
+        #     for word, next_words in step.items():
+        #         dot.node(word)
+        #         for next in next_words:
+        #             dot.edge(word, next)
 
-        dot.render("round-table.gv")
+        # dot.render("round-table.gv")
         return list(all_paths(a, start_word, end_word))
 
 
@@ -206,9 +208,12 @@ class TestData(TypedDict):
 
 
 def test(file: Path):
-    with open("./small.json") as test_data_file:
+    with open(file) as test_data_file:
         test_data: TestData = json.load(test_data_file)
-        shortest_ladders(test_data["start"], test_data["end"], set(test_data["list"]))
+        print(file)
+        for x in (shortest_ladders(test_data["start"], test_data["end"], set(test_data["list"])) or []):
+            print(x)
+        print("")
 
 
 def main():
@@ -216,9 +221,9 @@ def main():
 
     doctest.testmod()
 
-    # test(Path("./small.json"))
-    # large()
-    # xlarge()
+    test(Path("./small.json"))
+    test(Path("./large.json"))
+    test(Path("./xlarge.json"))
 
     # print(shortest_ladders( "hit", "cog", {"hot","dot","dog","lot","log", "cog"}))
 

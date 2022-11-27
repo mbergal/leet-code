@@ -22,6 +22,7 @@ class Suit(OrderedEnum):
     S = "S"
     H = "H"
 
+
 class Value(OrderedEnum):
     def __str__(self):
         return self.value
@@ -41,9 +42,7 @@ class Value(OrderedEnum):
     ACE = "A"
 
 
-
-
-class Rank(OrderedEnum):
+class Category(OrderedEnum):
     HIGH_CARD = "HIGH_CARD"
     ONE_PAIR = "ONE_PAIR"
     TWO_PAIRS = "TWO_PAIRS"
@@ -58,8 +57,9 @@ class Rank(OrderedEnum):
 
 class InvalidCard(Exception):
     def __init__(self, invalid_card: str):
-        super().__init__(f"Invalid card \"{invalid_card}\"")
-        self.invalid_card = invalid_card 
+        super().__init__(f'Invalid card "{invalid_card}"')
+        self.invalid_card = invalid_card
+
 
 @dataclass(order=True, frozen=True)
 class Card:
@@ -88,15 +88,18 @@ class Card:
         Traceback (most recent call last):
         ...
         InvalidCard: Invalid card "7R"
-                
+
         >>> Card.from_string("TH")
         TH
         """
-        if len(str) != 2: raise InvalidCard(str)
+        if len(str) != 2:
+            raise InvalidCard(str)
         suit_str = str[1]
-        if suit_str not in Suit: raise InvalidCard(str)
+        if suit_str not in Suit:
+            raise InvalidCard(str)
         value_str = str[0]
-        if value_str not in Value: raise InvalidCard(str)
+        if value_str not in Value:
+            raise InvalidCard(str)
 
         return Card(suit=Suit(suit_str), value=Value(value_str))
 
@@ -109,28 +112,32 @@ class Card:
 @dataclass(order=True, frozen=True)
 class Score:
     """
-    >>> Score(Rank.ONE_PAIR, []) < Score(Rank.TWO_PAIRS, [])
+    >>> score(Hand.from_string("AH KH QH JH TH")) == score(Hand.from_string("AS KS QS JS TS"))
     True
-    >>> Score(Rank.ONE_PAIR, []) > Score(Rank.TWO_PAIRS, [])
-    False
-    >>> Score(Rank.ONE_PAIR, []) == Score(Rank.ONE_PAIR, [])
+    >>> score(Hand.from_string("KH QH JH TH 9H")) == score(Hand.from_string("KS QS JS TS 9S"))
     True
+    >>> score(Hand.from_string("KH QH JH TH 9H")) > score(Hand.from_string("QS JS TS 9S 8S"))
+    True
+
+    # >>> Score(Category.STRAIGHT_FLUSH, Cards.from_string("QH JH TH 9H 8H")) < Score(Category.ROYAL_FLUSH, [])
+    # True
+    # >>> Score(Category.STRAIGHT_FLUSH, Cards.from_string("QH JH TH 9H 8H")) < Score(Category.STRAIGHT_FLUSH, Cards.from_string("JH TH 9H 8H 7H"))
+    # False
+    # >>> Score(Category.STRAIGHT_FLUSH, []) < Score(Category.ROYAL_FLUSH, [])
+    # True
+    # >>> Score(Category.ONE_PAIR, []) < Score(Category.TWO_PAIRS, [])
+    # True
+    # >>> Score(Category.ONE_PAIR, []) > Score(Category.TWO_PAIRS, [])
+    # False
+    # >>> Score(Category.ONE_PAIR, []) == Score(Category.ONE_PAIR, [])
+    # True
     """
 
-    rank: Rank
+    category: Category
     highest_cards: List[Value]
 
-    
     def __repr__(self) -> str:
-        return f"{self.rank.value},{[x.value for x in self.highest_cards]}"
-
-    
-    @staticmethod
-    def make(rank: Rank, *, hand: List[Card] = [], matched: Optional[List[Card]] = None):
-        if matched is not None:
-            assert hand is not None
-            return Score(rank, Cards.values(matched + Cards.diff(hand, matched)))
-        return Score(rank, Cards.values(hand))
+        return f"{self.category.value},{[x.value for x in self.highest_cards]}"
 
 
 class Cards:
@@ -145,9 +152,13 @@ class Cards:
 
         >>> Cards.from_string("7H TD")
         [7H, TD]
-        
+
         """
-        return [Card.from_string(x.strip()) for x in str.split(" ")] if str.strip() != "" else []
+        return (
+            [Card.from_string(x.strip()) for x in str.split(" ")]
+            if str.strip() != ""
+            else []
+        )
 
     @staticmethod
     def values(hand: Union[Sequence[Card], Iterator[Card]]) -> List[Value]:
@@ -202,16 +213,23 @@ class Cards:
 
 
 class Hand:
-    @staticmethod
-    def from_string(str: str):
-        return Hand(Cards.from_string(str))
+    """
+    >>> Hand.from_string("")
+    []
+
+    >>> Hand.from_string("3C 3S 3D 6C 6H")
+    [3C, 3D, 3S, 6C, 6H]
+    """
+
     class Has:
         def __init__(self, hand: "Hand", num: int) -> None:
             self.hand = hand
             self.num = num
 
-        def cards_of_same_value(self)->Optional[Tuple[Value, List[Card]]]:
-            return next((x for x in self.hand.sorted_by_value if len(x[1]) == self.num), None)
+        def cards_of_same_value(self) -> Optional[Tuple[Value, List[Card]]]:
+            return next(
+                (x for x in self.hand.sorted_by_value if len(x[1]) == self.num), None
+            )
 
     def __init__(self, cards: List[Card]):
         self.cards = list(sorted(cards))
@@ -223,15 +241,18 @@ class Hand:
             list(sorted(self.cards)), lambda card: card.value
         )
 
+    def __repr__(self) -> str:
+        return str(self.cards)
+
     @property
     def values(self):
-            return sorted(Cards.values(self.cards))
+        return sorted(Cards.values(self.cards))
 
     @property
     def is_single_suit(self) -> bool:
         return len(self.sorted_by_suit) == 1
 
-    def has(self, num: int ) ->"Hand.Has": 
+    def has(self, num: int) -> "Hand.Has":
         return Hand.Has(self, num)
 
     @property
@@ -242,6 +263,15 @@ class Hand:
                 for i in range(1, len(self.cards))
             ]
         )
+
+    @staticmethod
+    def from_string(str: str):
+        return Hand(Cards.from_string(str))
+
+    def score(self, rank: Category, matched: Optional[List[Card]] = None):
+        if matched is not None:
+            return Score(rank, Cards.values(matched + Cards.diff(self.cards, matched)))
+        return Score(rank, [])
 
 
 def match_royal_flush(hand: Hand) -> Optional[Score]:
@@ -261,8 +291,10 @@ def match_royal_flush(hand: Hand) -> Optional[Score]:
         Value.KING,
         Value.ACE,
     ]:
-        return Score.make(Rank.ROYAL_FLUSH)
+        return hand.score(Category.ROYAL_FLUSH)
 
+
+        
 def match_straight_flush(hand: Hand) -> Optional[Score]:
     """
     >>> match_straight_flush(Hand(Cards.from_string("QH JH TH 9H 8H")))
@@ -271,8 +303,9 @@ def match_straight_flush(hand: Hand) -> Optional[Score]:
     >>> match_straight_flush(Hand(Cards.from_string("QH JH TH 9H 7H")))
     """
     if hand.is_single_suit and hand.are_consequitive:
-        return Score.make(Rank.STRAIGHT_FLUSH, matched=hand.cards, hand=hand.cards)
-    
+        return hand.score(Category.STRAIGHT_FLUSH, matched=hand.cards)
+
+
 def match_four_of_a_kind(hand: Hand) -> Optional[Score]:
     """
     >>> match_four_of_a_kind(Hand(Cards.from_string("9C 9S 9D 9H JH")))
@@ -281,7 +314,8 @@ def match_four_of_a_kind(hand: Hand) -> Optional[Score]:
     >>> match_four_of_a_kind(Hand(Cards.from_string("9C 9S 9D 7H JH")))
     """
     if m := hand.has(4).cards_of_same_value():
-        return Score.make(Rank.FOUR_OF_A_KIND, matched=m[1], hand=hand.cards)
+        return hand.score(Category.FOUR_OF_A_KIND, matched=m[1])
+
 
 def match_full_house(hand: Hand) -> Optional[Score]:
     """
@@ -295,10 +329,9 @@ def match_full_house(hand: Hand) -> Optional[Score]:
     """
     if three := hand.has(3).cards_of_same_value():
         if pair := hand.has(2).cards_of_same_value():
-            return Score.make(
-                Rank.FULL_HOUSE, matched=three[1] + pair[1], hand=hand.cards
-            )
+            return hand.score(Category.FULL_HOUSE, matched=three[1] + pair[1])
     return None
+
 
 def match_flush(hand: Hand) -> Optional[Score]:
     """
@@ -306,81 +339,117 @@ def match_flush(hand: Hand) -> Optional[Score]:
     FLUSH,['K', 'T', '7', '6', '4']
     """
     if hand.is_single_suit:
-        return Score.make(Rank.FLUSH, matched=list(reversed(hand.cards)), hand=hand.cards)
+        return hand.score(Category.FLUSH, matched=list(reversed(hand.cards)))
+
 
 def match_straight(hand: Hand) -> Optional[Score]:
+    """
+    >>> match_straight(Hand.from_string("7C 6S 5S 4H 3H"))
+    STRAIGHT,['3', '4', '5', '6', '7']
+    >>> match_straight(Hand.from_string("7C 6S 5S 4H 2H"))
+    """
     if hand.are_consequitive:
-        return Score.make(Rank.STRAIGHT, matched=hand.cards, hand=hand.cards)
+        return hand.score(Category.STRAIGHT, matched=hand.cards)
+
 
 def match_three_of_a_kind(hand: Hand) -> Optional[Score]:
+    """
+    >>> match_three_of_a_kind(Hand.from_string("2D 2H 2C KS 6H"))
+    THREE_OF_A_KIND,['2', '2', '2', 'K', '6']
+
+    >>> match_three_of_a_kind(Hand.from_string("3D 2H 2C KS 6H"))
+    """
+
     if three := hand.has(3).cards_of_same_value():
-        return Score.make(Rank.THREE_OF_A_KIND, matched=three[1], hand=hand.cards)
+        return hand.score(Category.THREE_OF_A_KIND, matched=three[1])
+
 
 def match_two_pairs(hand: Hand) -> Optional[Score]:
+    """
+    >>> match_two_pairs(Hand.from_string("TD TH 2S 2C KC"))
+    TWO_PAIRS,['T', 'T', '2', '2', 'K']
+    """
+    """
+    >>> match_two_pairs(Hand.from_string("2S 2C TD TH KC"))
+    TWO_PAIRS,['T', 'T', '2', '2', 'K']
+    >>> match_two_pairs(Hand.from_string("3S 2C TD TH KC"))
+    """
     if pair_one := hand.has(2).cards_of_same_value():
-        if pair_two := next(
-            (x for x in hand.sorted_by_value if len(x[1]) == 2 and x != pair_one), None
+        if (
+            pair_two := Hand(Cards.diff(hand.cards, pair_one[1]))
+            .has(2)
+            .cards_of_same_value()
         ):
-            return Score.make(
-                Rank.TWO_PAIRS,
+            return hand.score(
+                Category.TWO_PAIRS,
                 matched=list(reversed(sorted(list(pair_one[1] + pair_two[1])))),
-                hand=hand.cards,
             )
 
     return None
 
+
 def match_one_pair(hand: Hand) -> Optional[Score]:
+    """
+    >>> match_one_pair(Hand.from_string("9C 9D QS JH 5H"))
+    ONE_PAIR,['9', '9', 'Q', 'J', '5']
+
+    # >>> match_one_pair ranks higher than 6♦ 6♥ K♠ 7♥ 4♣,
+    """
     if pair_one := hand.has(2).cards_of_same_value():
-        return Score.make(Rank.ONE_PAIR, matched=pair_one[1], hand=hand.cards)
+        return hand.score(Category.ONE_PAIR, matched=pair_one[1])
+
 
 def match_high_card(hand: Hand) -> Score:
-    return Score.make(Rank.HIGH_CARD, matched=list(reversed(hand.cards)), hand=hand.cards)
-    
-def score(cards: List[Card]) -> Score:
     """
-    >>> score(Cards.from_string("TH JH QH KH AH"))
+    >>> match_high_card(Hand.from_string("KH JH 8C 7D 4S"))
+    HIGH_CARD,['K', 'J', '8', '7', '4']
+    """
+    return hand.score(Category.HIGH_CARD, matched=list(reversed(hand.cards)))
+
+
+def score(hand: Hand) -> Score:
+    """
+    >>> score(Hand.from_string("TH JH QH KH AH"))
     ROYAL_FLUSH,[]
 
-    >>> score(Cards.from_string("AH TH JH QH KH"))
+    >>> score(Hand.from_string("AH TH JH QH KH"))
     ROYAL_FLUSH,[]
 
-    >>> score(Cards.from_string("9H TH JH QH KH"))
+    >>> score(Hand.from_string("9H TH JH QH KH"))
     STRAIGHT_FLUSH,['9', 'T', 'J', 'Q', 'K']
 
-    >>> score(Cards.from_string("TH JH QH KH 9H"))
+    >>> score(Hand.from_string("TH JH QH KH 9H"))
     STRAIGHT_FLUSH,['9', 'T', 'J', 'Q', 'K']
 
-    >>> score(Cards.from_string("TS TH TD TC AH"))
+    >>> score(Hand.from_string("TS TH TD TC AH"))
     FOUR_OF_A_KIND,['T', 'T', 'T', 'T', 'A']
 
-    >>> score(Cards.from_string("AH TS TH TD TC"))
+    >>> score(Hand.from_string("AH TS TH TD TC"))
     FOUR_OF_A_KIND,['T', 'T', 'T', 'T', 'A']
 
     ????
-    >>> score(Cards.from_string("7C 7H TS TH TD"))
+    >>> score(Hand.from_string("7C 7H TS TH TD"))
     FULL_HOUSE,['T', 'T', 'T', '7', '7']
 
-    >>> score(Cards.from_string("7C 2C 4C 8C KC"))
+    >>> score(Hand.from_string("7C 2C 4C 8C KC"))
     FLUSH,['K', '8', '7', '4', '2']
 
-    >>> score(Cards.from_string("TS TH TD KC AH"))
+    >>> score(Hand.from_string("TS TH TD KC AH"))
     THREE_OF_A_KIND,['T', 'T', 'T', 'A', 'K']
 
-    >>> score(Cards.from_string("TS TH 9D 9C AH"))
+    >>> score(Hand.from_string("TS TH 9D 9C AH"))
     TWO_PAIRS,['T', 'T', '9', '9', 'A']
 
-    >>> score(Cards.from_string("9D 9C TS TH AH"))
+    >>> score(Hand.from_string("9D 9C TS TH AH"))
     TWO_PAIRS,['T', 'T', '9', '9', 'A']
 
-    >>> score(Cards.from_string("TS TH 7D 9C AH"))
+    >>> score(Hand.from_string("TS TH 7D 9C AH"))
     ONE_PAIR,['T', 'T', 'A', '9', '7']
 
-    >>> score(Cards.from_string("QS TH 7D 9C AH"))
+    >>> score(Hand.from_string("QS TH 7D 9C AH"))
     HIGH_CARD,['A', 'Q', 'T', '9', '7']
 
     """
-    hand = Hand(cards)
-
 
     matches = [
         match_royal_flush,
@@ -424,8 +493,8 @@ def winner(str: str):
     # 1
 
     """
-    score1, score2 = score(Cards.from_string(str)[0:5]), score(
-        Cards.from_string(str)[5:]
+    score1, score2 = score(Hand(Cards.from_string(str)[0:5])), score(
+        Hand(Cards.from_string(str)[5:])
     )
     if score1 == score2:
         return 0

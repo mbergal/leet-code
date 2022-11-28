@@ -118,18 +118,18 @@ class Score:
     True
     >>> score(Hand.from_string("KH QH JH TH 9H")) > score(Hand.from_string("QS JS TS 9S 8S"))
     True
+    >>> score(Hand.from_string("QH JH TH 9H 8H")) < score(Hand.from_string("KH QH JH TH 9H"))
+    True
 
-    # >>> Score(Category.STRAIGHT_FLUSH, Cards.from_string("QH JH TH 9H 8H")) < Score(Category.ROYAL_FLUSH, [])
-    # True
-    # >>> Score(Category.STRAIGHT_FLUSH, Cards.from_string("QH JH TH 9H 8H")) < Score(Category.STRAIGHT_FLUSH, Cards.from_string("JH TH 9H 8H 7H"))
+    # >>> score_from_rank(rank((Category.STRAIGHT_FLUSH, Cards.from_string("QH JH TH 9H 8H")) < Score(Category.STRAIGHT_FLUSH, Cards.from_string("JH TH 9H 8H 7H"))
     # False
-    # >>> Score(Category.STRAIGHT_FLUSH, []) < Score(Category.ROYAL_FLUSH, [])
+    # >>> score_from_rank(rank((Category.STRAIGHT_FLUSH, []) < Score(Category.ROYAL_FLUSH, [])
     # True
-    # >>> Score(Category.ONE_PAIR, []) < Score(Category.TWO_PAIRS, [])
+    # >>> score_from_rank(rank((Category.ONE_PAIR, []) < Score(Category.TWO_PAIRS, [])
     # True
-    # >>> Score(Category.ONE_PAIR, []) > Score(Category.TWO_PAIRS, [])
+    # >>> score_from_rank(rank((Category.ONE_PAIR, []) > score_from_rank(rank(Category.TWO_PAIRS, [])
     # False
-    # >>> Score(Category.ONE_PAIR, []) == Score(Category.ONE_PAIR, [])
+    # >>> score_from_rank(rank((Category.ONE_PAIR, []))) == score_from_rank(rank((Category.ONE_PAIR, [])))
     # True
     """
 
@@ -316,7 +316,10 @@ def score_from_rank(rank:Rank):
         return rank.hand.score(Category.HIGH_CARD, list(reversed(sorted(rank.highest_cards))))
     else:
         raise Exception(f"Unknown rank {rank}")
-        
+
+def score(hand:Hand):
+    return score_from_rank(rank(hand))
+            
 
 @dataclass
 class RoyalFlush(Rank):
@@ -370,10 +373,10 @@ class FourOfAKind(Rank):
     @staticmethod
     def match(hand: Hand) -> Optional["FourOfAKind"]:
         """
-        >>> match_four_of_a_kind(Hand(Cards.from_string("9C 9S 9D 9H JH")))
-        FOUR_OF_A_KIND,['9', '9', '9', '9', 'J']
+        >>> FourOfAKind.match(Hand(Cards.from_string("9C 9S 9D 9H JH")))
+        FourOfAKind(four=[9C, 9D, 9S, 9H])
 
-        >>> match_four_of_a_kind(Hand(Cards.from_string("9C 9S 9D 7H JH")))
+        >>> FourOfAKind.match(Hand(Cards.from_string("9C 9S 9D 7H JH")))
         """
         if four := hand.has(4).cards_of_same_value():
             return FourOfAKind(hand, four=four[1])
@@ -391,13 +394,13 @@ class FullHouse(Rank):
     @staticmethod
     def match(hand: Hand) -> Optional["FullHouse"]:
         """
-        >>> match_full_house(Hand.from_string("3C 3S 3D 6C 6H"))
-        FULL_HOUSE,['3', '3', '3', '6', '6']
+        >>> FullHouse.match(Hand.from_string("3C 3S 3D 6C 6H"))
+        FullHouse(three=[3C, 3D, 3S], pair=[6C, 6H])
 
-        >>> match_full_house(Hand.from_string("6C 6H 3C 3S 3D"))
-        FULL_HOUSE,['3', '3', '3', '6', '6']
+        >>> FullHouse.match(Hand.from_string("6C 6H 3C 3S 3D"))
+        FullHouse(three=[3C, 3D, 3S], pair=[6C, 6H])
 
-        >>> match_full_house(Hand.from_string("6C 6H 3C 3S 5D"))
+        >>> FullHouse.match(Hand.from_string("6C 6H 3C 3S 5D"))
         """
         if three := hand.has(3).cards_of_same_value():
             if pair := hand.has(2).cards_of_same_value():
@@ -417,8 +420,8 @@ class Flush(Rank):
     @staticmethod
     def match(hand: Hand) -> Optional["Flush"]:
         """
-        >>> match_flush(Hand.from_string("KC TC 7C 6C 4C"))
-        FLUSH,['K', 'T', '7', '6', '4']
+        >>> Flush.match(Hand.from_string("KC TC 7C 6C 4C"))
+        Flush(flush=[KC, TC, 7C, 6C, 4C])
         """
         if hand.is_single_suit:
             return Flush(list(reversed(hand.cards)), hand)
@@ -435,7 +438,7 @@ class Straight(Rank):
         """
         >>> Straight.match(Hand.from_string("7C 6S 5S 4H 3H"))
         Straight(rank_cards=[3H, 4H, 5S, 6S, 7C])
-        
+
         >>> Straight.match(Hand.from_string("7C 6S 5S 4H 2H"))
         """
         if hand.are_consequitive:
@@ -504,8 +507,8 @@ class OnePair(Rank):
     @staticmethod
     def match(hand: Hand) -> Optional["OnePair"]:
         """
-        >>> match_one_pair(Hand.from_string("9C 9D QS JH 5H"))
-        ONE_PAIR,['9', '9', 'Q', 'J', '5']
+        >>> OnePair.match(Hand.from_string("9C 9D QS JH 5H"))
+        OnePair(pair=[9C, 9D])
 
         # >>> match_one_pair ranks higher than 6♦ 6♥ K♠ 7♥ 4♣,
         """
@@ -524,8 +527,8 @@ class HighCard(Rank):
     @staticmethod
     def match(hand: Hand) -> "HighCard":
         """
-        >>> match_high_card(Hand.from_string("KH JH 8C 7D 4S"))
-        HIGH_CARD,['K', 'J', '8', '7', '4']
+        >>> HighCard.match(Hand.from_string("KH JH 8C 7D 4S"))
+        HighCard(highest_cards=[KH, JH, 8C, 7D, 4S])
         """
         return HighCard(highest_cards=list(reversed(sorted(hand.cards))), hand=hand)
     
@@ -621,7 +624,7 @@ def winner(str: str):
     # 1
 
     """
-    score1, score2 = rank(Hand(Cards.from_string(str)[0:5])), rank(
+    score1, score2 = score(Hand(Cards.from_string(str)[0:5])), score(
         Hand(Cards.from_string(str)[5:])
     )
     if score1 == score2:
